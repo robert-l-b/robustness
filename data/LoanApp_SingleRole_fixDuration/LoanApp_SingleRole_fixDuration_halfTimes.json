@@ -1,0 +1,321 @@
+{
+    "arrival_time_calendar": [
+        {
+            "beginTime": "07:00:00",
+            "endTime": "16:00:00",
+            "from": "MONDAY",
+            "to": "MONDAY"
+        },
+        {
+            "beginTime": "07:00:00",
+            "endTime": "16:00:00",
+            "from": "TUESDAY",
+            "to": "TUESDAY"
+        },
+        {
+            "beginTime": "07:00:00",
+            "endTime": "16:00:00",
+            "from": "WEDNESDAY",
+            "to": "WEDNESDAY"
+        },
+        {
+            "beginTime": "07:00:00",
+            "endTime": "16:00:00",
+            "from": "THURSDAY",
+            "to": "THURSDAY"
+        },
+        {
+            "beginTime": "07:00:00",
+            "endTime": "16:00:00",
+            "from": "FRIDAY",
+            "to": "FRIDAY"
+        }
+    ],
+    "arrival_time_distribution": {
+        "distribution_name": "fix",
+        "distribution_params": [
+            {
+                "value": 1800.0
+            }
+        ]
+    },
+    "gateway_branching_probabilities": [
+        {
+            "gateway_id": "node_61f7d243-f1fc-4e98-ac3c-c929e737bb46",
+            "probabilities": [
+                {
+                    "path_id": "node_c6d4e08b-e685-4263-bf69-58551d4738b3",
+                    "value": 0.3921232876712329
+                },
+                {
+                    "path_id": "node_4ab34270-b47d-4af5-9f98-2f569e7b4bf8",
+                    "value": 0.6078767123287672
+                }
+            ]
+        },
+        {
+            "gateway_id": "node_645ee027-7ae8-4f3a-9127-f99918deb220",
+            "probabilities": [
+                {
+                    "path_id": "node_9bd733c7-c763-4b6f-8acd-b5fb2e2f7496",
+                    "value": 0.9025270758122743
+                },
+                {
+                    "path_id": "node_22d1dde3-5f73-4f1c-9d38-e5c39a612aa4",
+                    "value": 0.09747292418772563
+                }
+            ]
+        },
+        {
+            "gateway_id": "node_ca4fbec9-1f9a-4f95-b2fe-a143fbe4277f",
+            "probabilities": [
+                {
+                    "path_id": "node_0bb88215-d460-45ba-9bb4-741eed3ba0e1",
+                    "value": 0.416
+                },
+                {
+                    "path_id": "node_7aa180b9-7580-42a3-9789-023db5026dd8",
+                    "value": 0.584
+                }
+            ]
+        }
+    ],
+    "process_model": "data/LoanApp_SingleRole/best_result/LoanApp.bpmn",
+    "resource_calendars": [
+        {
+            "id": "UnifiedResourceCalendar",
+            "name": "UnifiedResourceCalendar",
+            "time_periods": [
+                {
+                    "beginTime": "09:00:00",
+                    "endTime": "17:00:00",
+                    "from": "MONDAY",
+                    "to": "MONDAY"
+                },
+                {
+                    "beginTime": "09:00:00",
+                    "endTime": "17:00:00",
+                    "from": "TUESDAY",
+                    "to": "TUESDAY"
+                },
+                {
+                    "beginTime": "09:00:00",
+                    "endTime": "17:00:00",
+                    "from": "WEDNESDAY",
+                    "to": "WEDNESDAY"
+                },
+                {
+                    "beginTime": "09:00:00",
+                    "endTime": "17:00:00",
+                    "from": "THURSDAY",
+                    "to": "THURSDAY"
+                },
+                {
+                    "beginTime": "09:00:00",
+                    "endTime": "17:00:00",
+                    "from": "FRIDAY",
+                    "to": "FRIDAY"
+                }
+            ]
+        }
+    ],
+    "resource_profiles": [
+        {
+            "id": "UnifiedResourceProfile",
+            "name": "UnifiedResourceProfile",
+            "resource_list": [
+                {
+                    "amount": 19,
+                    "assignedTasks": [
+                        "node_c013bddf-f9c5-4bf2-bf10-174f16278509",
+                        "node_2b931838-bb28-4706-8772-4a1b722ec59a",
+                        "node_1e130a40-5f27-4e1f-b68d-8867f372210e",
+                        "node_1a9cc630-9d22-4f2e-ba5f-1f889077f0e3",
+                        "node_6b23203d-efff-46ac-ad72-4b01ff8e12ef",
+                        "node_be70eb51-fbff-4c4b-8c92-61c2843860aa",
+                        "node_86a78697-c75c-46a6-8879-081d46eb321b",
+                        "node_3c910d5f-e87e-4310-a058-d4d29bb7c7ed",
+                        "node_7016cd89-ed88-48ed-a1fb-af839b7e6b4f",
+                        "node_4d13d3d2-a972-4885-982a-7f9ffeb25bda",
+                        "node_5fc0c46f-1801-4fb1-9adf-a3c46833a7ae",
+                        "node_402cce9d-10e4-4679-8c3b-2a0dcaf82523"
+                    ],
+                    "calendar": "UnifiedResourceCalendar",
+                    "cost_per_hour": 20,
+                    "id": "UnifiedResource",
+                    "name": "UnifiedResource"
+                }
+            ]
+        }
+    ],
+    "task_resource_distribution": [
+        {
+            "resources": [
+                {
+                    "distribution_name": "fix",
+                    "distribution_params": [
+                        {
+                            "value": 1800.0
+                        }
+                    ],
+                    "resource_id": "UnifiedResource"
+                }
+            ],
+            "task_id": "node_c013bddf-f9c5-4bf2-bf10-174f16278509"
+        },
+        {
+            "resources": [
+                {
+                    "distribution_name": "fix",
+                    "distribution_params": [
+                        {
+                            "value": 900.0
+                        }
+                    ],
+                    "resource_id": "UnifiedResource"
+                }
+            ],
+            "task_id": "node_2b931838-bb28-4706-8772-4a1b722ec59a"
+        },
+        {
+            "resources": [
+                {
+                    "distribution_name": "fix",
+                    "distribution_params": [
+                        {
+                            "value": 1800.0
+                        }
+                    ],
+                    "resource_id": "UnifiedResource"
+                }
+            ],
+            "task_id": "node_1e130a40-5f27-4e1f-b68d-8867f372210e"
+        },
+        {
+            "resources": [
+                {
+                    "distribution_name": "fix",
+                    "distribution_params": [
+                        {
+                            "value": 1500.0
+                        }
+                    ],
+                    "resource_id": "UnifiedResource"
+                }
+            ],
+            "task_id": "node_1a9cc630-9d22-4f2e-ba5f-1f889077f0e3"
+        },
+        {
+            "resources": [
+                {
+                    "distribution_name": "fix",
+                    "distribution_params": [
+                        {
+                            "value": 1200.0
+                        }
+                    ],
+                    "resource_id": "UnifiedResource"
+                }
+            ],
+            "task_id": "node_6b23203d-efff-46ac-ad72-4b01ff8e12ef"
+        },
+        {
+            "resources": [
+                {
+                    "distribution_name": "fix",
+                    "distribution_params": [
+                        {
+                            "value": 1600.0
+                        }
+                    ],
+                    "resource_id": "UnifiedResource"
+                }
+            ],
+            "task_id": "node_be70eb51-fbff-4c4b-8c92-61c2843860aa"
+        },
+        {
+            "resources": [
+                {
+                    "distribution_name": "fix",
+                    "distribution_params": [
+                        {
+                            "value": 2000.0
+                        }
+                    ],
+                    "resource_id": "UnifiedResource"
+                }
+            ],
+            "task_id": "node_86a78697-c75c-46a6-8879-081d46eb321b"
+        },
+        {
+            "resources": [
+                {
+                    "distribution_name": "fix",
+                    "distribution_params": [
+                        {
+                            "value": 1100.0
+                        }
+                    ],
+                    "resource_id": "UnifiedResource"
+                }
+            ],
+            "task_id": "node_3c910d5f-e87e-4310-a058-d4d29bb7c7ed"
+        },
+        {
+            "resources": [
+                {
+                    "distribution_name": "fix",
+                    "distribution_params": [
+                        {
+                            "value": 2500.0
+                        }
+                    ],
+                    "resource_id": "UnifiedResource"
+                }
+            ],
+            "task_id": "node_7016cd89-ed88-48ed-a1fb-af839b7e6b4f"
+        },
+        {
+            "resources": [
+                {
+                    "distribution_name": "fix",
+                    "distribution_params": [
+                        {
+                            "value": 1750.0
+                        }
+                    ],
+                    "resource_id": "UnifiedResource"
+                }
+            ],
+            "task_id": "node_4d13d3d2-a972-4885-982a-7f9ffeb25bda"
+        },
+        {
+            "resources": [
+                {
+                    "distribution_name": "fix",
+                    "distribution_params": [
+                        {
+                            "value": 3000.0
+                        }
+                    ],
+                    "resource_id": "UnifiedResource"
+                }
+            ],
+            "task_id": "node_5fc0c46f-1801-4fb1-9adf-a3c46833a7ae"
+        },
+        {
+            "resources": [
+                {
+                    "distribution_name": "fix",
+                    "distribution_params": [
+                        {
+                            "value": 900.0
+                        }
+                    ],
+                    "resource_id": "UnifiedResource"
+                }
+            ],
+            "task_id": "node_402cce9d-10e4-4679-8c3b-2a0dcaf82523"
+        }
+    ]
+}
