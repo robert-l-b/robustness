@@ -11,8 +11,8 @@ version: 5
 common:
   # Path to the event log in CSV format
   # train_log_path: ../../../../data/dummy_2tasks/dummy_2tasks_sim.csv
-  train_log_path: ../../../../data/LoanApp/LoanApp.csv
-  train_log_path: ../../../../data/ten_activities/ten_activities.csv
+  train_log_path: ../../../../data/LoanApp_TwoRoles/LoanApp_TwoRoles.csv
+  # train_log_path: ../../../../data/ten_activities/ten_activities.csv
   # Specify the name for each of the columns in the CSV file (XES standard by default)
   log_ids:
     case: "case_id"
