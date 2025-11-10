@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 
 # Script for simulation execution and evaluation
+import numpy as np
+# from scipy.stats import norm 
+from statsmodels.distributions.empirical_distribution import ECDF
 
 from src.simulators.param_manipulation import *
 from src.log_stats_calculation import *
-import numpy as np
-from scipy.stats import norm
+
+from prosimos import simulation_engine, simulation_properties_parser
 
 
 def is_in_target_range(target_ppi_dict, params, strictness=None, above_below=False):
@@ -38,15 +41,11 @@ def is_in_target_range(target_ppi_dict, params, strictness=None, above_below=Fal
 
     for ppi in target_ppi_dict.keys():
         target_ppi_list = target_ppi_dict[ppi]
-
-
-    
         target_min, target_max = params['target_range'][ppi]
         
-        # Calculate the mean and standard deviation of the list
-        mean = np.mean(target_ppi_list)
-
         if in_out_criteria == "mean":
+            # Calculate the mean and standard deviation of the list
+            mean = np.mean(target_ppi_list)
             # Check if the mean is within the target range
             in_range = target_min <= mean <= target_max
             if not in_range and above_below:
@@ -54,27 +53,63 @@ def is_in_target_range(target_ppi_dict, params, strictness=None, above_below=Fal
 
 
         elif in_out_criteria == "confidence":
-            std_dev = np.std(target_ppi_list)
+            # std_dev = np.std(target_ppi_list)
+            # mean = np.mean(target_ppi_list)
 
-            if std_dev == 0:
-                # If std_dev is 0, the confidence interval collapses to the mean
-                lower_bound = upper_bound = mean
-            else:
-                # Find the bounds of the confidence interval
-                # TO_CHECK: cinfidence interval or with that confidence below/above
-                lower_bound = norm.ppf((1 - confidence) / 2, loc=mean, scale=std_dev)
-                upper_bound = norm.ppf(1 - (1 - confidence) / 2, loc=mean, scale=std_dev)
+            # if std_dev == 0:
+            #     # If std_dev is 0, the confidence interval collapses to the mean
+            #     lower_bound = upper_bound = mean
+            # else:
+            #     # Find the bounds of the confidence interval
+            #     # TO_CHECK: cinfidence interval or with that confidence below/above
+            #     lower_bound = norm.ppf((1 - confidence) / 2, loc=mean, scale=std_dev)
+            #     upper_bound = norm.ppf(1 - (1 - confidence) / 2, loc=mean, scale=std_dev)
 
-            # Check if the confidence interval is fully within the target range
-            in_range = target_min <= lower_bound and upper_bound <= target_max
-        
+            # # Check if the confidence interval is fully within the target range
+            # in_range = target_min <= lower_bound and upper_bound <= target_max
+
+            # if not in_range and above_below:
+            #     if upper_bound < target_min:
+            #         direction = "below"
+            #     elif lower_bound > target_max:
+            #         direction = "above"
+            #     else:
+            #         direction = "mixed"  # Partially in range
+
+            # Handle edge case: Empty or single-value list
+            if len(target_ppi_list) == 0:
+                raise ValueError("target_ppi_list is empty, cannot compute confidence interval.")
+
+            # Sort the PPI list to build the ECDF
+            sorted_ppi_list = np.sort(target_ppi_list)
+
+            # Calculate the ECDF values
+            n = len(sorted_ppi_list)
+            ecdf = np.arange(1, n + 1) / n
+
+            # Use statsmodels ECDF
+            ecdf = ECDF(target_ppi_list)
+
+            # Calculate the mass within the target range
+            ecdf_min = ecdf(target_min)
+            ecdf_max = ecdf(target_max)
+            mass_within_range = ecdf_max - ecdf_min
+
+            # Check if the mass within the range is greater than the confidence value
+            in_range = mass_within_range >= confidence
+            direction = None
+
             if not in_range and above_below:
-                if upper_bound < target_min:
+                # Determine whether more mass lies above or below the range
+                mass_below = ecdf_min
+                mass_above = 1 - ecdf_max
+                if mass_below > mass_above:
                     direction = "below"
-                elif lower_bound > target_max:
+                elif mass_above > mass_below:
                     direction = "above"
                 else:
-                    direction = "mixed"  # Partially in range
+                    direction = "mixed"  # Equal mass above and below
+                direction_per_ppi.append(direction)
 
         elif strictness is not None:
             # Adjust the target range based on strictness
@@ -93,8 +128,7 @@ def is_in_target_range(target_ppi_dict, params, strictness=None, above_below=Fal
             raise ValueError(f"Invalid in_out_criteria: {in_out_criteria}. Use 'mean', 'confidence'.")
         
         in_range_per_ppi.append(in_range)
-        if not in_range and above_below:
-            direction_per_ppi.append(direction)
+        direction_per_ppi.append(direction)
         
 
     in_range = all(in_range_per_ppi)
@@ -164,8 +198,10 @@ def get_simulation_stats(params):
         ppi_dict[ppi] = []
 
     # Extract cost per hour per profile from JSON configuration if required
-    if 'cost' in params['target_ppis'] and calculate_stats == 'custom':
-        cost_per_hour = extract_cost_per_hour(params["json_path"])
+    if calculate_stats == 'custom':
+        cost_per_hour = {}
+        if 'cost' in params['target_ppis']:
+            cost_per_hour = extract_cost_per_hour(params["json_path"])
 
         
 
@@ -189,12 +225,7 @@ def get_simulation_stats(params):
         # calcualte PPI values from the log files
         if calculate_stats == 'custom':
 
-            custom_ppis = {
-                'lead_time': 'avg',
-                'cost': 'total'
-                }
-            
-            if ppi not in custom_ppis.keys():
+            if ppi not in params['ppi_calculation'].keys():
                 raise ValueError(f"PPI '{ppi}' is not supported for custom calculation.")
             
             ppi_dict = calculate_custom_stats(params, ppi_dict, cost_per_hour, r, t)

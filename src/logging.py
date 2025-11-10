@@ -2,14 +2,18 @@
 
 # Script for logging simulation results and parameters
 
+import os
+import shutil
 import pandas as pd
 import numpy as np
 import json
 import datetime
-from src.simulators.param_manipulation import *
+# from src.simulators.param_manipulation import *
+from src.sim_execution_and_evalaution import is_in_target_range
+# from src.sim_execution_and_evalaution import *
 
 # Logging function
-def log_simulation(algorithm, params, param_values, target_ppi_dict):
+def log_simulation(simulation_log, algorithm, params, param_values, target_ppi_dict):
     """
     Logs the details of a simulation run.
 
@@ -21,7 +25,6 @@ def log_simulation(algorithm, params, param_values, target_ppi_dict):
     Returns:
         None
     """
-    global simulation_log
 
     target_ppi_mean_dict = {}
     for ppi in params['target_ppis']:
@@ -46,6 +49,8 @@ def log_simulation(algorithm, params, param_values, target_ppi_dict):
 
     # Append the log entry to the simulation log
     simulation_log = pd.concat([simulation_log, pd.DataFrame([log_entry])], ignore_index=True)
+    
+    return simulation_log
 
 
 def initialize_simulation_log(params_to_change):
@@ -57,10 +62,12 @@ def initialize_simulation_log(params_to_change):
     Returns:
         pd.DataFrame: An empty DataFrame with the appropriate columns.
     """
-    global simulation_log
+    # global simulation_log
     param_names = list(params_to_change.keys())
     columns = ['algorithm', 'simulation_id', 'timestamp', 'target_range', 'status', 'target_ppis', 'target_ppi_means', 'target_ppi_dict'] + param_names
-    simulation_log = pd.DataFrame(columns=columns)
+    return pd.DataFrame(columns=columns)
+
+
 
 
 def save_params(params):
@@ -77,6 +84,20 @@ def save_params(params):
         print(f"Parameters saved to {output_params_path}")
     else:
         print("Error: 'output_params_path' not found in params dictionary.")
+
+
+def save_simulation_log(simulation_log, params):
+    """
+    Saves the simulation log DataFrame to a CSV file.
+
+    Args:
+        simulation_log (pd.DataFrame): DataFrame containing the simulation log.
+        params (dict): Simulation parameters including 'simulation_log_path'.
+    """
+    # Save the simulation log to a CSV file for later analysis
+    simulation_log.to_csv(params['simulation_log_path'], index=False)
+
+    print(f"Simulation log saved to {params['simulation_log_path']}")
 
 
 # Function to log execution times per search strategy
@@ -106,3 +127,42 @@ def save_execution_times_log(output_path):
     with open(output_path, 'w') as outfile:
         json.dump(execution_times_log, outfile, indent=4, sort_keys=True)
     print(f"Execution times log saved to {output_path}")    
+
+
+
+
+
+def set_up_experiment_output_dir(params):
+    """
+    Sets up the experiment output directory based on the current timestamp.
+
+    Args:
+        params (dict): Dictionary containing configuration parameters, including 'base_path'.
+
+    Returns:
+        params (dict): Updated params dictionary with 'experiment_output_dir', 'output_params_path', and 'simulation_log_path' keys.
+    """
+    
+
+    # Define the output directory path
+    output_dir = os.path.join(params['base_path'], 'output')
+
+    # Generate a timestamp-based directory name
+    current_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    experiment_output_dir = os.path.join(output_dir, f"{current_timestamp}")
+
+    # Create the directory if it does not exist
+    os.makedirs(experiment_output_dir, exist_ok=True)
+    params['experiment_output_dir'] = experiment_output_dir
+
+    output_params_path = os.path.join(params['experiment_output_dir'], 'params.json')    
+    params['output_params_path'] = output_params_path 
+    simulation_log_path = os.path.join(params['experiment_output_dir'], 'simulation_log.csv')
+    params['simulation_log_path'] = simulation_log_path
+
+    # Copy the file that is under params[json_path'] to params['experiment_output_dir'] 
+    shutil.copy(params['json_path'], experiment_output_dir)
+
+    print(f"Output directory ensured at: {experiment_output_dir}")
+
+    return params

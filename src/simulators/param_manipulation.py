@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 
 # Getting / setting sim parameters
 # SIMOD related parameter manipulation functions
