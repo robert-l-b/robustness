@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 from matplotlib.ticker import ScalarFormatter, LogLocator, FuncFormatter, MaxNLocator
+from mpl_toolkits.mplot3d import Axes3D
 
 def plot_param_relationships(results_df, algorithms, params):
     """
@@ -295,4 +296,102 @@ def plot_3d_results_with_target_range(results_df, params, algorithm, x_col, z_co
         plt.savefig(os.path.join(params['viz']['output_figures_path'], fig_name + extension))
 
 
+    plt.show()
+
+
+
+
+
+
+def plot_3d_in_out(results_df, params, algorithm, use_connected_surface=False):
+    """
+    Plots a 3D graph with three parameters on the axes, visualizing in-range and out-of-range points.
+    Optionally, plots out-of-range points as a connected red surface.
+
+    Args:
+        results_df (pd.DataFrame): The DataFrame containing simulation results.
+        params (dict): A dictionary containing simulation parameters, including "viz".
+        algorithm (str): The algorithm to filter the results for.
+
+    Returns:
+        None
+    """
+    # Extract 3D plotting parameters
+    plot_params = params['viz']['3d_InOut_params']
+    x_param = plot_params['x_param']
+    y_param = plot_params['y_param']
+    z_param = plot_params['z_param']
+
+    # Extract parameter bounds
+    x_bounds = params['params_to_change'][x_param]['values']
+    y_bounds = params['params_to_change'][y_param]['values']
+    z_bounds = params['params_to_change'][z_param]['values']
+
+    # Filter the DataFrame for the given algorithm
+    filtered_df = results_df[results_df['algorithm'] == algorithm]
+
+    # Separate in-range and out-of-range points
+    in_range = filtered_df[filtered_df['status'] == 'in']
+    out_of_range = filtered_df[filtered_df['status'] == 'out']
+
+    # Create the 3D plot
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title(f"3D Parameter Space for {algorithm}")
+
+    # Plot in-range points as green scatter points
+    ax.scatter(in_range[x_param], in_range[y_param], in_range[z_param],
+               c='green', label="In Range", alpha=0.8)
+
+    # if use_connected_surface:
+    #     # Plot out-of-range points as a connected red surface
+    #     if len(out_of_range) > 0:
+    #         x_out = out_of_range[x_param].values
+    #         y_out = out_of_range[y_param].values
+    #         z_out = out_of_range[z_param].values
+
+    #         # Create a triangulated surface
+    #         ax.plot_trisurf(x_out, y_out, z_out, color='red', alpha=0.7, label="Out of Range (Surface)")
+
+    if use_connected_surface:
+        # Plot out-of-range points as a connected red surface
+        if len(out_of_range) >= 3:  # Ensure there are at least 3 points
+            x_out = out_of_range[x_param].values
+            y_out = out_of_range[y_param].values
+            z_out = out_of_range[z_param].values
+
+            # Check for duplicate points
+            unique_points = np.unique(np.column_stack((x_out, y_out, z_out)), axis=0)
+            if len(unique_points) >= 3:  # Ensure there are at least 3 unique points
+                x_out, y_out, z_out = unique_points[:, 0], unique_points[:, 1], unique_points[:, 2]
+                ax.plot_trisurf(x_out, y_out, z_out, color='red', alpha=0.7, label="Out of Range (Surface)")
+            else:
+                print("Not enough unique points to create a surface.")
+        else:
+            print("Not enough points to create a surface.")
+
+
+    else:
+        # Plot out-of-range points as red scatter points
+        ax.scatter(out_of_range[x_param], out_of_range[y_param], out_of_range[z_param],
+                   c='red', label="Out of Range", alpha=0.8)
+
+    # Set axis labels and limits
+    ax.set_xlabel(f"{x_param} (Range: {x_bounds[0]} to {x_bounds[1]})")
+    ax.set_ylabel(f"{y_param} (Range: {y_bounds[0]} to {y_bounds[1]})")
+    ax.set_zlabel(f"{z_param} (Range: {z_bounds[0]} to {z_bounds[1]})")
+    ax.set_xlim(x_bounds)
+    ax.set_ylim(y_bounds)
+    ax.set_zlim(z_bounds)
+
+    # Add legend and grid
+    ax.legend()
+    ax.grid(True)
+
+    # Save the plot
+    fig_name = f"3D_Param_Space_{algorithm}_{'surface' if use_connected_surface else 'scatter'}"
+    for extension in params['viz']['figure_extensions']:
+        plt.savefig(os.path.join(params['viz']['output_figures_path'], fig_name + extension))
+
+    # Show the plot
     plt.show()
