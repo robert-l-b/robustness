@@ -149,7 +149,14 @@ def set_up_experiment_output_dir(params):
 
     # Generate a timestamp-based directory name
     current_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    experiment_output_dir = os.path.join(output_dir, f"{current_timestamp}")
+    nr_of_parameters = len(params['params_to_change'])
+    nr_of_ppis = len(params['target_ppis'])
+    n = params['nr_simulations_per_scenario']
+    c = params.get('confidence', 'NA')
+    beta = params.get('beta', 'NA')
+    dir_name = f'{current_timestamp}_{nr_of_parameters}D_{nr_of_ppis}PPIs_{n}n_{c}a_{beta}b'
+    
+    experiment_output_dir = os.path.join(output_dir, dir_name)
 
     # Create the directory if it does not exist
     os.makedirs(experiment_output_dir, exist_ok=True)
@@ -166,3 +173,15 @@ def set_up_experiment_output_dir(params):
     print(f"Output directory ensured at: {experiment_output_dir}")
 
     return params
+
+
+def create_results_dataframe():
+    """
+    Creates an empty DataFrame with the columns:
+    experiment, algorithm, evals, time, acc, mcc.
+
+    Returns:
+        pd.DataFrame: An empty DataFrame with the specified columns.
+    """
+    columns = ['experiment', 'algorithm', 'evals', 'time', 'acc', 'mcc']
+    return pd.DataFrame(columns=columns)

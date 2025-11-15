@@ -171,6 +171,7 @@ def get_sim_params(json_path_temp):
         sim_params = json.load(infile)
     return sim_params
 
+
 def set_sim_params(json_path_temp, sim_params):
     """
     Write updated simulation parameters back to the temporary JSON file.
@@ -196,7 +197,7 @@ def set_sim_params(json_path_temp, sim_params):
 #     return sim_params
 
 
-def set_change_param_value(param_name, new_value, sim_params):
+def set_change_param_value(param_name, new_value, sim_params, params_to_change=None):
     """
     Updates a specific parameter in the simulation parameters, including resources.
 
@@ -212,6 +213,7 @@ def set_change_param_value(param_name, new_value, sim_params):
         # Update the arrival time distribution mean
         if "arrival_time_distribution" in sim_params:
             sim_params["arrival_time_distribution"]["distribution_params"][0]["value"] = new_value
+    
     elif param_name.startswith("resource_count_"):
         # Update resource-specific parameters
         resource_id = param_name.split("_")[-1]  # Extract the resource ID
@@ -220,19 +222,25 @@ def set_change_param_value(param_name, new_value, sim_params):
                 for resource in resource_profile.get("resource_list", []):
                     resource["amount"] = new_value
                 break
-    # elif param_name.startswith("resource_"):
-    #     # Update resource-specific parameters
-    #     resource_id = param_name.split("_")[1]  # Extract the resource ID
-    #     for resource_profile in sim_params.get("resource_profiles", []):
-    #         if resource_profile["id"] == resource_id:
-    #             for resource in resource_profile.get("resource_list", []):
-    #                 resource["amount"] = new_value
-    #             break
 
-    # elif param_name == 'resource_count':
-    #     sim_params['resource_profiles'][0]['resource_list'][0]['amount'] = new
+    elif param_name.startswith("branching_probability_"):
+        # Update branching probabilities in the JSON file
+        # Extract the gateway_id and path_ids from the param_name
+        gateway_id = param_name.split("_")[-1]  # Extract the gateway_id from the parameter name
+        gateway_id = params_to_change[param_name].get('gateway_id', gateway_id)
+        path_ids = params_to_change[param_name].get('path_ids', [])
 
-    
+        # Find the gateway in the simulation parameters
+        for gateway in sim_params.get("gateway_branching_probabilities", []):
+            if gateway["gateway_id"] == gateway_id:
+                # Update the probabilities for the specified path_ids
+                for probability in gateway["probabilities"]:
+                    if probability["path_id"] == path_ids[0]:  # Update the specified path_id
+                        probability["value"] = new_value
+                    elif probability["path_id"] == path_ids[1]:  # Update the other path_id
+                        probability["value"] = 1 - new_value
+                break
+
     return sim_params
 
 
@@ -262,47 +270,128 @@ def get_resource_profile_ids_and_amounts(resource_model):
     return resource_data
 
 
-def set_params_to_change(input_parameters, update_parameter, sim_params):
+
+
+
+def set_params_to_change(params_to_change, input_parameters, update_parameters_list, sim_params):
     '''
-    Adjusts the input parameters dictionary to account for resource-specific parameters.    
+    Adds parameters to params_to_change based on the input_parameters and update_parameters_list.
+    Handles both resource parameters and branching probabilities with filtering options.
     Args:
-        input_parameters (dict): Original dictionary of parameters to change.
-        update_parameter (str): The parameter being updated.
-        sim_params (dict): The current simulation parameters.
+        params_to_change (dict): Existing dictionary of parameters to change.
+        input_parameters (dict): Input parameters specifying types and values.
+        update_parameters_list (list): List of parameters to update.
+        sim_params (dict): Simulation parameters containing resource and branching data.
     Returns:
-        dict: Updated dictionary of parameters to change.
+        dict: Updated params_to_change dictionary.
     '''
 
-    params_to_change = input_parameters.copy()
+    # Initialize params_to_change with all parameters that are not in update_parameters_list 
+    params_to_change = {k: v for k, v in input_parameters.items() if k not in update_parameters_list}
 
-    if update_parameter == 'resource_count':
-        # Remove 'resource_count' from the parameters to change
-        params_to_change = {k: v for k, v in input_parameters.items() if k != 'resource_count'}
-        
-        # Get resource data
-        resource_data = get_resource_profile_ids_and_amounts(sim_params)
-        
-        # Check if 'ignore' exists in the input parameters
-        ignore_list = input_parameters.get('resource_count', {}).get('ignore', [])
-        ignore_list = [ignore.lower() for ignore in ignore_list]  # Convert ignore list to lowercase
-        
-        for resource_id, amount in resource_data.items():
-            # Convert resource_id to lowercase for case-insensitive comparison
-            if any(ignore_str in resource_id.lower() for ignore_str in ignore_list):
-                continue
+    for input_parameter in input_parameters.keys():
+        if input_parameter not in update_parameters_list:
+            continue
+        update_parameter = input_parameter
+
+        if update_parameter == 'resource_count':            
+            # Get resource data
+            resource_data = get_resource_profile_ids_and_amounts(sim_params)
             
-            # Add resource-specific parameter
-            param_key = f'resource_count_{resource_id}'
-            params_to_change[param_key] = {
-                'type': 'disc',
-                'values': input_parameters['resource_count']['values']
-            }
+            # Check if 'ignore' exists in the input parameters
+            ignore_list = input_parameters.get('resource_count', {}).get('ignore', [])
+            ignore_list = [ignore.lower() for ignore in ignore_list]  # Convert ignore list to lowercase
+            
+            for resource_id, amount in resource_data.items():
+                # Convert resource_id to lowercase for case-insensitive comparison
+                if any(ignore_str in resource_id.lower() for ignore_str in ignore_list):
+                    continue
+                
+                # Add resource-specific parameter
+                param_key = f'resource_count_{resource_id}'
+                params_to_change[param_key] = {
+                    'type': 'disc',
+                    'values': input_parameters['resource_count']['values']
+                }
 
+        if update_parameter == 'branching_probability':
+            clustered_branching_probs = {}
+
+            # Cluster probabilities by gateway_id
+            if "gateway_branching_probabilities" in sim_params:
+                for gateway in sim_params["gateway_branching_probabilities"]:
+                    gateway_id = gateway.get("gateway_id")
+                    if gateway_id is None:
+                        continue  # Skip if no gateway_id is found
+                    
+                    # Initialize the list for this gateway_id if not already present
+                    if gateway_id not in clustered_branching_probs:
+                        clustered_branching_probs[gateway_id] = []
+                    
+                    # Add probabilities to the corresponding gateway_id
+                    if "probabilities" in gateway:
+                        clustered_branching_probs[gateway_id].extend(gateway["probabilities"])
+            else:
+                raise ValueError("No 'gateway_branching_probabilities' found in sim_params. Choose another process parameter.")
+
+            # Check if 'ignore' or 'use' exists in the input parameters
+            use_list = input_parameters.get('branching_probability', {}).get('use', [])
+            ignore_list = input_parameters.get('branching_probability', {}).get('ignore', [])
+
+            # Convert all gateway_ids in use_list and ignore_list to lowercase for case-insensitive comparison
+            use_list = [gateway_id.lower() for gateway_id in use_list]
+            ignore_list = [gateway_id.lower() for gateway_id in ignore_list]
+
+            # Filter clustered_branching_probs based on use_list or ignore_list
+            if use_list:
+                # Keep only the gateway_ids in use_list
+                clustered_branching_probs = {
+                    gateway_id: probs
+                    for gateway_id, probs in clustered_branching_probs.items()
+                    if gateway_id.lower() in use_list
+                }
+            elif ignore_list:
+                # Exclude the gateway_ids in ignore_list
+                clustered_branching_probs = {
+                    gateway_id: probs
+                    for gateway_id, probs in clustered_branching_probs.items()
+                    if gateway_id.lower() not in ignore_list
+                }
+
+            for gateway in clustered_branching_probs:
+                if len(clustered_branching_probs[gateway]) < 2:
+                    raise ValueError(f"Less then 2 branching paths detected in gateway {gateway}. Please adjust the 'ignore' and 'use' lists in the input parameters to ensure at least two branching paths are considered for each gateway.")
+                elif len(clustered_branching_probs[gateway]) > 2:
+                    raise ValueError(f"More then 2 branching paths detected in gateway {gateway}. Current variation strategy only supports 2 branching paths per gateway. Please adjust the 'ignore' and 'use' lists in the input parameters to ensure only two branching paths are considered for each gateway.")
+                else:
+                    first_path_id = clustered_branching_probs[gateway][0]['path_id']
+                    # key = f"branching_probability_{gateway}->{first_path_id}"
+                    # Set Key to shorter version
+                    key = f"branching_probability_{gateway[:10]}->{first_path_id[:10]}"
+                    params_to_change[key] = {
+                        'type': input_parameters['branching_probability']['type'],
+                        'values':  input_parameters['branching_probability']['values'],
+                        'category': 'branching_probability',
+                        'gateway_id': gateway,
+                        'path_ids': [node['path_id'] for node in clustered_branching_probs[gateway]]
+                }
     return params_to_change
 
 
 # get change_param_values 
 def get_change_param_values(params_to_change, change_param, sim_params):
+    """ 
+    Retrieve the current value of a specified parameter from the simulation parameters. 
+    Args:
+        params_to_change (list): List of parameters to vary.
+        change_param (str): The parameter whose value is to be retrieved.
+        sim_params (dict): The simulation parameters JSON structure.
+    Returns:
+        float or int: The current value of the specified parameter.
+    """
+
+    change_param_val = None
+
     if change_param == 'arriaval_distr_mean':
         change_param_val = sim_params['arrival_time_distribution']['distribution_params'][0]['value']
 
@@ -316,10 +405,26 @@ def get_change_param_values(params_to_change, change_param, sim_params):
                 for resource in resource_profile.get("resource_list", []):
                     change_param_val = resource["amount"]
 
-    if change_param not in params_to_change.keys():
+    elif change_param.startswith("branching_probability_"):
+        # Extract the gateway_id and path_ids from the param_name
+        gateway_id = change_param.split("_")[-1]  # Extract the gateway_id from the parameter name
+        gateway_id = params_to_change[change_param].get('gateway_id', gateway_id)
+        path_ids = params_to_change[change_param].get('path_ids', [])
+
+        # Find the gateway in the simulation parameters
+        for gateway in sim_params.get("gateway_branching_probabilities", []):
+            if gateway["gateway_id"] == gateway_id:
+                # Get the probabilities for the specified path_ids
+                for probability in gateway["probabilities"]:
+                    if probability["path_id"] == path_ids[0]:  # Get the specified path_id
+                        change_param_val = probability["value"]
+                break           
+
+    elif change_param not in params_to_change.keys():
         raise ValueError(f"Unsupported parameter for change values: {change_param}")
 
     return change_param_val 
+
 
 
 def get_start_param_settings(params_to_change, params):

@@ -158,7 +158,7 @@ def run_grid_search(params, simulation_log):
         
         # Apply the parameter values to the simulation parameters
         for change_param, new_value in param_values.items():
-            sim_params = set_change_param_value(change_param, new_value, sim_params)
+            sim_params = set_change_param_value(change_param, new_value, sim_params, params_to_change=params.get('params_to_change', None))
         
         # Save the updated simulation parameters
         set_sim_params(params['json_path_temp'], sim_params)

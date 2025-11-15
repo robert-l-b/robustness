@@ -163,7 +163,7 @@ def set_sim_params_get_sim_stats(params, param_values):
 
     # Update simulation parameters with the provided parameter values
     for change_param, new_value in param_values.items():
-        sim_params = set_change_param_value(change_param, new_value, sim_params)
+        sim_params = set_change_param_value(change_param, new_value, sim_params, params_to_change=params.get('params_to_change', None))
 
     # Save the updated simulation parameters
     set_sim_params(params['json_path_temp'], sim_params)
