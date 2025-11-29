@@ -1,8 +1,23 @@
 #!/usr/bin/env python3
 
+import os
 import numpy as np
 from src.simulators.param_manipulation import get_sim_params, set_params_to_change
 from src.sim_execution_and_evalaution import get_simulation_stats
+from src.simulators.param_manipulation import create_temp_json
+
+
+def prepare_simulation_files(params):
+    '''
+    Prepare simulation files: BPMN and JSON paths, create temporary JSON.
+    '''
+    bpmn_path = os.path.join(params['base_path'], params['process_name'] + '.bpmn')
+    json_path = os.path.join(params['base_path'], params['process_name'] + '.json')
+    params['json_path'] = json_path
+    json_path_temp = create_temp_json(input_path=json_path, output_path=None)
+    params['bpmn_path'] = bpmn_path
+    params['json_path_temp'] = json_path_temp
+    return params
 
 def get_params_to_change(params):
     '''

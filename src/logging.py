@@ -183,5 +183,20 @@ def create_results_dataframe():
     Returns:
         pd.DataFrame: An empty DataFrame with the specified columns.
     """
-    columns = ['experiment', 'algorithm', 'evals', 'time', 'acc', 'mcc']
-    return pd.DataFrame(columns=columns)
+    columns = ['experiment', 'algorithm', 'evals', 'time', 'n', 'n_total', 'acc', 'mcc']
+    results_df = pd.DataFrame(columns=columns)
+    return results_df
+
+def save_results_dataframe(results_df, params):
+    """
+    Saves the results DataFrame to a CSV file.
+
+    Args:
+        results_df (pd.DataFrame): DataFrame containing the results.
+        params (dict): Dictionary containing configuration parameters, including 'output_params_path'.
+    """
+    output_params_path = params.get('experiment_output_dir')
+    filename = 'results_df.csv'
+    output_path = os.path.join(output_params_path, filename)
+    results_df.to_csv(output_path, index=False)
+    print(f"Results DataFrame saved to {output_path}")

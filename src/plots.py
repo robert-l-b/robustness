@@ -143,6 +143,178 @@ def plot_param_relationships(results_df, algorithms, params):
 
 
 
+def get_label(param_name, label_dict):
+    for key in label_dict.keys():
+        if param_name.startswith(key):
+            label = label_dict[key]
+            return label
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+
+def plot_gs_hqt_overlay_with_areas(results_df, params, hqt_df):
+    """
+    Plots the grid search results as the first layer (red and green dots), overlays other algorithms,
+    and plots the areas from hqt_df based on their coordinates.
+
+    Args:
+        results_df (pd.DataFrame): The DataFrame containing simulation results.
+        params (dict): A dictionary containing simulation parameters, including "viz".
+        hqt_df (pd.DataFrame): The DataFrame containing hyperquadtree data.
+
+    Returns:
+        None
+    """
+    # Extract parameters for the plot
+    x_param = params['viz']['2d_params']['x_param']
+    y_param = params['viz']['2d_params']['y_param']
+    algorithms = results_df['algorithm'].unique()
+
+    # Extract plot variables
+    plot_vars = params['viz']['plot_vars']
+    label_dict = plot_vars['label_dict']
+    x_label = get_label(x_param, label_dict)
+    y_label = get_label(y_param, label_dict)
+    gr_s = 25
+
+    plt.figure(figsize=plot_vars['figure_size'])
+
+
+
+    import matplotlib.ticker as ticker
+
+    # Set the y-axis to print every 2nd tick
+    plt.yticks(fontsize=plot_vars['tick_size'])
+    ax = plt.gca()
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(2))  # Show every 2nd tick on the y-axis
+
+    # Format the x-axis from seconds to minutes
+    def seconds_to_minutes(x, pos):
+        return f"{x / 60:.1f}"  # Convert seconds to minutes and format to 1 decimal place
+
+    ax.xaxis.set_major_formatter(ticker.FuncFormatter(seconds_to_minutes))
+    plt.xticks(fontsize=plot_vars['tick_size'])
+
+    # Set the x-axis to display meaningful ticks (e.g., every 5 minutes)
+    def seconds_to_minutes(x, pos):
+        return f"{x / 60:.0f}"  # Convert seconds to minutes and format as an integer
+
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(900))  # Set ticks every 300 seconds (5 minutes)
+    ax.xaxis.set_major_formatter(ticker.FuncFormatter(seconds_to_minutes))  # Format ticks as minutes
+
+    # Set the font size for the x-axis ticks
+    plt.xticks(fontsize=plot_vars['tick_size'])
+
+
+    # Plot grid search results first
+    if "grid_search" in algorithms:
+        grid_search_results = results_df[results_df['algorithm'] == "grid_search"]
+
+        # Separate points in and out of the target range
+        in_range = grid_search_results[grid_search_results['status'] == 'in']
+        out_of_range = grid_search_results[grid_search_results['status'] == 'out']
+
+        # Plot in-range points in green
+        plt.scatter(
+            in_range[x_param],
+            in_range[y_param],
+            color='green',
+            label="Grid Search (In Range)",
+            alpha=plot_vars['transparancy'],
+            s=gr_s
+        )
+
+        # Plot out-of-range points in red
+        plt.scatter(
+            out_of_range[x_param],
+            out_of_range[y_param],
+            color='red',
+            label="Grid Search (Out of Range)",
+            alpha=plot_vars['transparancy'],
+            s = gr_s
+        )
+
+    # Overlay other algorithms
+    for algorithm in algorithms:
+        if algorithm != "grid_search":
+            algo_results = results_df[results_df['algorithm'] == algorithm]
+
+            # Separate points in and out of the target range
+            in_range = algo_results[algo_results['status'] == 'in']
+            out_of_range = algo_results[algo_results['status'] == 'out']
+
+            # Plot in-range points
+            plt.scatter(
+                in_range[x_param],
+                in_range[y_param],
+                color=plot_vars['tree_node_colour'],
+                alpha=plot_vars['transparancy'],
+                label=f"{algorithm} (In Range)",
+                s=gr_s+20
+            )
+
+            # Plot out-of-range points
+            plt.scatter(
+                out_of_range[x_param],
+                out_of_range[y_param],
+                color=plot_vars['tree_node_colour'],
+                alpha=plot_vars['transparancy'],
+                label=f"{algorithm} (Out of Range)",
+                s=gr_s+20
+            )
+
+    # Plot areas from hqt_df
+    for _, row in hqt_df.iterrows():
+        if row['is_leaf']:  # Only plot areas for rows where is_leaf is True
+            # Determine the color based on the status
+            if row['status'] == 'mixed':
+                color = 'white'
+            elif row['status'] == 'in_range':
+                color = 'green'
+            elif row['status'] == 'out_range':
+                color = 'red'
+            else:
+                continue  # Skip rows with unknown status
+
+            # Create a rectangle for the area
+            rect = patches.Rectangle(
+                (row['dim_0_min'], row['dim_1_min']),  # Bottom-left corner
+                row['dim_0_max'] - row['dim_0_min'],  # Width
+                row['dim_1_max'] - row['dim_1_min'],  # Height
+                linewidth=0,
+                edgecolor=None,
+                facecolor=color,
+                alpha=0.1  # Transparency factor
+            )
+            plt.gca().add_patch(rect)
+
+    # Add labels, legend, and title
+    plt.xlabel(x_label, fontsize=plot_vars['label_size'])
+    plt.ylabel(y_label, fontsize=plot_vars['label_size'])
+    plt.xticks(fontsize=plot_vars['tick_size'])
+    plt.yticks(fontsize=plot_vars['tick_size'])
+
+    title = params['process_name'] + "_GS_HQT_overlay"
+    if plot_vars['plot_title']:
+        plt.title(title, fontsize=plot_vars['label_size'])
+
+    if plot_vars['plot_legend']:
+        plt.legend(
+            loc=plot_vars['legend_location'],
+            fontsize=plot_vars['legend_size']
+        )
+
+    plt.grid(alpha=plot_vars['grid_alpha'])
+
+    plt.tight_layout()
+
+    # Save the plot
+    log_name = params.get('process_name', 'log_name')
+    fig_name = f'{log_name}_Overlay_{x_param}_vs_{y_param}_with_areas'
+    for extension in params['viz']['figure_extensions']:
+        plt.savefig(os.path.join(params['viz']['output_figures_path'], fig_name + extension))
+
+    plt.show()
 
 
 
@@ -393,7 +565,7 @@ def plot_3d_in_out(results_df, params, algorithm, use_connected_surface=False, a
         plt.tight_layout()
 
         # Save the plot
-        fig_name = f"3D_Param_Space_{algorithm}_{'surface' if use_connected_surface else 'scatter'}_{show_points}"
+        fig_name = f"3D_Param_Space_{algorithm}_{'surface' if use_connected_surface else 'scatter'}_{show_points}_azim{azim_angle}"
         for extension in params['viz']['figure_extensions']:
             plt.savefig(os.path.join(params['viz']['output_figures_path'], fig_name + extension))
 

@@ -216,7 +216,8 @@ def set_change_param_value(param_name, new_value, sim_params, params_to_change=N
     
     elif param_name.startswith("resource_count_"):
         # Update resource-specific parameters
-        resource_id = param_name.split("_")[-1]  # Extract the resource ID
+        # resource_id = param_name.split("_")[-1]  # Extract the resource ID
+        resource_id = param_name[len("resource_count_"):]
         for resource_profile in sim_params.get("resource_profiles", []):
             if resource_profile["id"] == resource_id:
                 for resource in resource_profile.get("resource_list", []):
@@ -311,7 +312,9 @@ def set_params_to_change(params_to_change, input_parameters, update_parameters_l
                 param_key = f'resource_count_{resource_id}'
                 params_to_change[param_key] = {
                     'type': 'disc',
-                    'values': input_parameters['resource_count']['values']
+                    'values': input_parameters['resource_count']['values'],
+                    'min_step_size': input_parameters['resource_count'].get('min_step_size', 1),
+                    'category': 'resource_count'
                 }
 
         if update_parameter == 'branching_probability':
@@ -373,7 +376,8 @@ def set_params_to_change(params_to_change, input_parameters, update_parameters_l
                         'values':  input_parameters['branching_probability']['values'],
                         'category': 'branching_probability',
                         'gateway_id': gateway,
-                        'path_ids': [node['path_id'] for node in clustered_branching_probs[gateway]]
+                        'path_ids': [node['path_id'] for node in clustered_branching_probs[gateway]],
+                        'min_step_size': input_parameters['branching_probability'].get('min_step_size', 0.1)
                 }
     return params_to_change
 

@@ -75,7 +75,9 @@ def discover_BPS_simod(params):
     # output = Path(os.path.join(simod_directory, 'resources', 'output'))
     output = Path(os.path.join(params['base_path']))
 
-    configuration_path = Path(os.path.join(simod_directory, 'resources', 'config', 'config_one-shot.yml' ))
+
+    configuration_path = Path(params['simod_config_path'])
+    # configuration_path = Path(os.path.join(simod_directory, 'resources', 'config', 'config_one-shot.yml' ))
     settings = SimodSettings.from_path(configuration_path)
 
     # Read and preprocess event log

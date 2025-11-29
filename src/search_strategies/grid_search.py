@@ -70,15 +70,15 @@ def generate_grid_search_ranges(params):
     
     # Get the starting parameter settings
     start_param_settings = get_start_param_settings(params_to_change, params)
-    grid_search_input = 'original_input'
+    grid_search_input = params['strategies']['grid_search'].get('input_mode', 'max_granularity')  # Default to 'original_input'
     # Define the granularity (maximum number of values for each parameter)
-    granularity = params['strategies']['grid_search']['granularity']
 
     # Initialize the grid search ranges
     grid_search_ranges = {}
 
     if grid_search_input == 'original_input':
 
+        granularity = params['strategies']['grid_search']['granularity']
         # Generate ranges based on params_to_change
         for param, details in params_to_change.items():
             if details['type'] == 'cont':  # Continuous parameter
@@ -94,6 +94,27 @@ def generate_grid_search_ranges(params):
                     # Use all available discrete values if they are fewer than granularity
                     grid_search_ranges[param] = full_range
 
+    elif grid_search_input == 'max_granularity':
+
+        # Generate ranges based on min_step_size
+        for param, details in params_to_change.items():
+            min_step_size = details.get('min_step_size', None)
+            if min_step_size is None:
+                raise ValueError(f"Parameter '{param}' is missing 'min_step_size' for max_granularity mode.")
+
+            if details['type'] == 'cont':  # Continuous parameter
+                # Generate a grid with steps of min_step_size within the bounds
+                start, end = details['values']
+                grid_search_ranges[param] = [round(x, 10) for x in frange(start, end, min_step_size)]
+            elif details['type'] == 'disc':  # Discrete parameter
+                # Generate a grid with discrete steps of min_step_size
+                start, end = details['values']
+                grid_search_ranges[param] = list(range(start, end + 1, min_step_size))
+            elif details['type'] == 'cat':  # Categorical parameter
+                # Use the list of possible values directly
+                grid_search_ranges[param] = details['values']
+            else:
+                raise ValueError(f"Unknown parameter type '{details['type']}' for parameter '{param}'.")
 
     elif grid_search_input == 'custom_input':
         
@@ -120,6 +141,23 @@ def generate_grid_search_ranges(params):
     print(f'Total combinations to test: {len(all_combinations)}')
 
     return grid_search_ranges, all_combinations
+
+
+def frange(start, stop, step):
+    """
+    Generate a range of floating-point numbers.
+
+    Args:
+        start (float): Start of the range.
+        stop (float): End of the range.
+        step (float): Step size.
+
+    Yields:
+        float: Next number in the range.
+    """
+    while start < stop or abs(start - stop) < 1e-10:  # Handle floating-point precision issues
+        yield start
+        start += step
 
 
 

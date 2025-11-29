@@ -641,3 +641,164 @@ def evaluate_hyperquadtree_vs_simulation_log(all_nodes, simulation_log, nodes_vi
     }
 
     return results_df, pd.Series(summary)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# -------------------------------------
+
+
+# def calculate_normalized_space(simulation_log, params):
+#     """
+#     Calculate the normalized space between in_range, out_range, and mixed cubes.
+
+#     Args:
+#         gs_df (pd.DataFrame): DataFrame containing grid search points with columns:
+#                               ['arriaval_distr_mean', 'resource_count_unified_resource_profile',
+#                                'branching_probability_node_51629->node_75a93', 'status'].
+
+#     Returns:
+#         dict: A dictionary with the normalized space for each category:
+#               {'in_range': float, 'out_range': float, 'mixed': float}.
+#     """
+#     # Ensure the DataFrame is sorted by dimensions for proper cube formation
+#     gs_df = simulation_log[simulation_log['algorithm'] == 'grid_search'].copy()
+#     gs_df = gs_df.sort_values(by=list(params['params_to_change'].keys())).reset_index(drop=True)
+
+#     # Extract unique values for each dimension
+#     dim_0_vals = gs_df['arriaval_distr_mean'].unique()
+#     dim_1_vals = gs_df['resource_count_unified_resource_profile'].unique()
+#     dim_2_vals = gs_df['branching_probability_node_51629->node_75a93'].unique()
+
+#     # Initialize total volumes for each category
+#     total_volumes = {'in_range': 0.0, 'out_range': 0.0, 'mixed': 0.0}
+
+#     # Iterate through all possible cubes
+#     for i in range(len(dim_0_vals) - 1):
+#         for j in range(len(dim_1_vals) - 1):
+#             for k in range(len(dim_2_vals) - 1):
+#                 # Define the corner points of the cube
+#                 cube_points = gs_df[
+#                     (gs_df['arriaval_distr_mean'].between(dim_0_vals[i], dim_0_vals[i + 1], inclusive='both')) &
+#                     (gs_df['resource_count_unified_resource_profile'].between(dim_1_vals[j], dim_1_vals[j + 1], inclusive='both')) &
+#                     (gs_df['branching_probability_node_51629->node_75a93'].between(dim_2_vals[k], dim_2_vals[k + 1], inclusive='both'))
+#                 ]
+
+#                 # Skip if the cube is not fully defined (less than 8 corner points)
+#                 if len(cube_points) < 8:
+#                     continue
+
+#                 # Check the status of all corner points
+#                 statuses = cube_points['status'].values
+
+#                 # Classify the cube
+#                 if np.all(statuses):  # All points are in_range
+#                     category = 'in_range'
+#                 elif not np.any(statuses):  # All points are out_range
+#                     category = 'out_range'
+#                 else:  # Mixed points
+#                     category = 'mixed'
+
+#                 # Calculate the volume of the cube
+#                 volume = (
+#                     (dim_0_vals[i + 1] - dim_0_vals[i]) *
+#                     (dim_1_vals[j + 1] - dim_1_vals[j]) *
+#                     (dim_2_vals[k + 1] - dim_2_vals[k])
+#                 )
+
+#                 # Add the volume to the corresponding category
+#                 total_volumes[category] += volume
+
+#     # Normalize the volumes
+#     total_volume = sum(total_volumes.values())
+#     if total_volume > 0:
+#         for category in total_volumes:
+#             total_volumes[category] /= total_volume
+
+#     return total_volumes
+
+def calculate_normalized_space(simulation_log, params):
+    """
+    Calculate the normalized space between in_range, out_range, and mixed cubes.
+
+    Args:
+        simulation_log (pd.DataFrame): DataFrame containing grid search points with columns
+                                       corresponding to params['params_to_change'] and 'status'.
+        params (dict): Dictionary containing 'params_to_change', which specifies the parameters
+                       being varied.
+
+    Returns:
+        dict: A dictionary with the normalized space for each category:
+              {'in_range': float, 'out_range': float, 'mixed': float}.
+    """
+    # Ensure the DataFrame is sorted by dimensions for proper cube formation
+    param_keys = list(params['params_to_change'].keys())
+    gs_df = simulation_log[simulation_log['algorithm'] == 'grid_search'].copy()
+    gs_df = gs_df.sort_values(by=param_keys).reset_index(drop=True)
+
+    # Extract unique values for each dimension
+    unique_values = {key: gs_df[key].unique() for key in param_keys}
+
+    # Initialize total volumes for each category
+    total_volumes = {'in_range': 0.0, 'out_range': 0.0, 'mixed': 0.0}
+
+    # Recursive function to iterate through all dimensions
+    def iterate_cubes(dim_idx, current_ranges):
+        if dim_idx == len(param_keys):  # Base case: all dimensions processed
+            # Define the corner points of the cube
+            cube_points = gs_df
+            for dim, (start, end) in enumerate(current_ranges):
+                key = param_keys[dim]
+                cube_points = cube_points[
+                    cube_points[key].between(start, end, inclusive='both')
+                ]
+
+            # Skip if the cube is not fully defined (less than 2^n corner points)
+            if len(cube_points) < 2 ** len(param_keys):
+                return
+
+            # Check the status of all corner points
+            statuses = cube_points['status'].values
+
+            # Classify the cube
+            if np.all(statuses):  # All points are in_range
+                category = 'in_range'
+            elif not np.any(statuses):  # All points are out_range
+                category = 'out_range'
+            else:  # Mixed points
+                category = 'mixed'
+
+            # Calculate the volume of the cube
+            volume = 1.0
+            for dim, (start, end) in enumerate(current_ranges):
+                volume *= (end - start)
+
+            # Add the volume to the corresponding category
+            total_volumes[category] += volume
+        else:
+            # Recursive case: iterate through the current dimension
+            key = param_keys[dim_idx]
+            values = unique_values[key]
+            for i in range(len(values) - 1):
+                iterate_cubes(dim_idx + 1, current_ranges + [(values[i], values[i + 1])])
+
+    # Start the recursive iteration
+    iterate_cubes(0, [])
+
+    # Normalize the volumes
+    total_volume = sum(total_volumes.values())
+    if total_volume > 0:
+        for category in total_volumes:
+            total_volumes[category] /= total_volume
+
+    return total_volumes
