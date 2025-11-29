@@ -3,6 +3,7 @@ import numpy as np
 from src.logging import log_simulation
 import csv
 import json
+from random import uniform
 
 # ================================
 # Hyperquadtree Node
@@ -23,211 +24,7 @@ class HyperQuadNode:
 # ================================
 # Adaptive Hyperquadtree Algorithm
 # ================================
-# def adaptive_hyperquadtree(set_sim_params_get_sim_stats, is_in_target_range, params, simulation_log, min_depth=1, max_depth=4):
-#     """
-#     Adaptive hyperquadtree algorithm for n-dimensional parameter spaces.
 
-#     Args:
-#         set_sim_params_get_sim_stats: Function that sets parameters and returns simulation stats.
-#         is_in_target_range: Function that checks if the simulation result is in the target range.
-#         params: Dictionary containing simulation parameters, including 'params_to_change'.
-#         max_depth: Maximum depth of the hyperquadtree.
-
-#     Returns:
-#         frontier: List of leaf nodes at the final depth.
-#         all_nodes: List of all nodes in the hyperquadtree.
-#         sampled_points: Dictionary of sampled points and their results.
-#         nodes_visited: Dictionary tracking nodes visited and sampled points at each depth.
-#     """
-#     params_to_change = params['params_to_change']
-#     algorithm = 'hyperquadtree'
-
-#     # Extract parameter definitions
-#     param_names = list(params_to_change.keys())
-#     n_dims = len(param_names)  # Number of dimensions
-#     if n_dims < 1:
-#         raise ValueError("params_to_change must contain at least one parameter.")
-
-#     # Initialize root node
-#     bounds = [(info["values"][0], info["values"][1]) for info in params_to_change.values()]
-#     root = HyperQuadNode(bounds)
-#     all_nodes = [root]
-#     sampled_points = {}
-
-#     def all_values_same(lst):
-#         return all(x == lst[0] for x in lst)
-
-#     def cast_value(val, is_disc):
-#         """Cast value to integer if discrete, otherwise leave continuous."""
-#         return int(round(val)) if is_disc else val
-
-#     def evaluate(node, simulation_log):
-#         """Evaluate the simulation function at the corners and decide if subdivision is needed."""
-#         # Generate all corners of the hypercube
-#         corners = []
-#         for corner in np.ndindex(*(2,) * n_dims):  # Generate 2^n corners
-#             corner_coords = [
-#                 cast_value(node.bounds[i][corner[i]], params_to_change[param_names[i]]["type"] == "disc")
-#                 for i in range(n_dims)
-#             ]
-#             corners.append(tuple(corner_coords))
-
-#         results = []
-#         results_direction = []
-#         for corner in corners:
-#             if params['print_intermediate_results']:
-#                 print(f"\n\n # Evaluating corner at {corner}")
-
-#             if corner not in sampled_points:
-#                 # Prepare parameter values for the simulation
-#                 param_values = {param_names[i]: corner[i] for i in range(n_dims)}
-#                 target_ppi_dict = set_sim_params_get_sim_stats(params, param_values)
-#                 sampled_points[corner] = target_ppi_dict
-
-#                 # Log the simulation results
-#                 simulation_log = log_simulation(
-#                     simulation_log=simulation_log,
-#                     algorithm=algorithm,
-#                     params=params,
-#                     target_ppi_dict=target_ppi_dict,
-#                     param_values=param_values,
-#                 )
-#             else:
-#                 target_ppi_dict = sampled_points[corner]
-
-#             if params['print_intermediate_results']:
-#                 print(f"  Target PPI Dict: {target_ppi_dict}")
-
-#             # Determine if in target range
-#             in_range, in_out_mixed = is_in_target_range(target_ppi_dict, params, above_below=True)
-#             results.append(in_range)
-#             results_direction.append(in_out_mixed)
-
-#             if params['print_intermediate_results']:
-#                 print(f"  In Target Range: {in_range}, Direction: {in_out_mixed}")
-
-#         # Check if region is "mixed" (contains both in-range and out-of-range corners)
-#         in_range = any(results)
-#         out_range = any(not r for r in results)
-#         direction_range = all_values_same(results_direction)
-
-#         if params['print_intermediate_results']:
-#             print(f"Node at depth {node.depth} - In Range: {in_range}, Out Range: {out_range}, Direction Range Same: {direction_range}")
-
-#         # Classify node
-#         node.corner_results = [(corners[i], results[i]) for i in range(len(corners))]
-
-#         if all(results):
-#             node.status = "in_range"
-#         elif not any(results):
-#             node.status = "out_range"
-#         else:
-#             node.status = "mixed"
-
-#         if params['print_intermediate_results']:
-#             print(f"Node at depth {node.depth} classified as {node.status}")
-
-#         # Subdivide if necessary
-#         if (node.depth<min_depth) or ((in_range and out_range or out_range and not direction_range) and node.depth < max_depth):
-#         # if ((in_range and out_range or out_range and not direction_range) and node.depth < max_depth):
-
-#             # if not (node.depth<min_depth):
-#             node.is_leaf = False
-#             midpoints = [
-#                 cast_value((node.bounds[i][0] + node.bounds[i][1]) / 2, params_to_change[param_names[i]]["type"] == "disc")
-#                 for i in range(n_dims)
-#             ]
-
-#             # Generate child nodes
-#             children = []
-#             for corner in np.ndindex(*(2,) * n_dims):  # Generate 2^n child nodes
-#                 child_bounds = [
-#                     (node.bounds[i][0], midpoints[i]) if corner[i] == 0 else (midpoints[i], node.bounds[i][1])
-#                     for i in range(n_dims)
-#                 ]
-#                 children.append(HyperQuadNode(child_bounds, node.depth + 1))
-#             node.children = children
-#             return children, simulation_log
-#         return [], simulation_log
-
-#     # Iterative refinement
-#     frontier = [root]
-#     previous_sample_count = 0
-#     nodes_visited = {}
-#     for iteration in range(max_depth):
-#         new_frontier = []
-#         for node in frontier:
-#             new_children, simulation_log = evaluate(node, simulation_log)
-#             new_frontier.extend(new_children)
-
-#         previous_sample_count = len(sampled_points)
-#         frontier = new_frontier
-#         all_nodes.extend(frontier)
-
-#         nodes_visited[iteration] = {
-#             'all_nodes': len(all_nodes),
-#             'sampled_points': len(sampled_points)
-#         }
-
-#         if params['print_intermediate_results']:
-#             # plot_hyperquadtree(params, nodes=all_nodes, samples=nodes_visited, iteration=iteration)
-#             plot_hyperquadtree(params, nodes=all_nodes, nodes_visited=nodes_visited, iteration=iteration)
-
-#     print(f'Number of nodes: {len(all_nodes)}, Number of sampled points: {len(sampled_points)}')
-#     return all_nodes, sampled_points, nodes_visited, simulation_log
-
-
-
-
-# def adaptive_hyperquadtree(set_sim_params_get_sim_stats, is_in_target_range, params, simulation_log, min_depth=1, max_depth=4):
-#     """
-#     Adaptive hyperquadtree algorithm for n-dimensional parameter spaces.
-
-#     Args:
-#         set_sim_params_get_sim_stats: Function that sets parameters and returns simulation stats.
-#         is_in_target_range: Function that checks if the simulation result is in the target range.
-#         params: Dictionary containing simulation parameters, including 'params_to_change'.
-#         simulation_log: Log of the simulation process.
-#         min_depth: Minimum depth of the hyperquadtree.
-#         max_depth: Maximum depth of the hyperquadtree.
-
-#     Returns:
-#         frontier: List of leaf nodes at the final depth.
-#         all_nodes: List of all nodes in the hyperquadtree.
-#         sampled_points: Dictionary of sampled points and their results.
-#         nodes_visited: Dictionary tracking nodes visited and sampled points at each depth.
-#     """
-#     params_to_change = params['params_to_change']
-#     algorithm = 'hyperquadtree'
-
-#     # Extract parameter definitions
-#     param_names = list(params_to_change.keys())
-#     n_dims = len(param_names)  # Number of dimensions
-#     if n_dims < 1:
-#         raise ValueError("params_to_change must contain at least one parameter.")
-
-#     # Initialize root node
-#     bounds = [(info["values"][0], info["values"][1]) for info in params_to_change.values()]
-#     root = HyperQuadNode(bounds)
-#     all_nodes = [root]
-#     sampled_points = {}
-
-#     # Calculate the initial space (volume) of the bounds
-#     def calculate_space(bounds):
-#         """Calculate the n-dimensional space (volume) of a given set of bounds."""
-#         space = 1
-#         for bound in bounds:
-#             space *= bound[1] - bound[0]
-#         return space
-
-#     initial_space = calculate_space(bounds)
-
-#     def calculate_leaf_space(leaf_nodes):
-#         """Calculate the total space (volume) of all leaf nodes."""
-#         total_space = 0
-#         for node in leaf_nodes:
-#             total_space += calculate_space(node.bounds)
-#         return total_space
 
 def calculate_normalized_space(bounds, global_bounds):
     """
@@ -246,7 +43,7 @@ def calculate_normalized_space(bounds, global_bounds):
         space *= normalized_range
     return space
 
-def adaptive_hyperquadtree(set_sim_params_get_sim_stats, is_in_target_range, params, simulation_log, min_depth=1, max_depth=4):
+def adaptive_hyperquadtree(set_sim_params_get_sim_stats, is_in_target_range, params, simulation_log, min_depth=1, max_depth=4, variation='midpoints'):
     """
     Adaptive hyperquadtree algorithm for n-dimensional parameter spaces.
 
@@ -257,6 +54,7 @@ def adaptive_hyperquadtree(set_sim_params_get_sim_stats, is_in_target_range, par
         simulation_log: Log of the simulation process.
         min_depth: Minimum depth of the hyperquadtree.
         max_depth: Maximum depth of the hyperquadtree.
+        variation: Splitting strategy ('midpoints' or 'random').
 
     Returns:
         frontier: List of leaf nodes at the final depth.
@@ -265,7 +63,7 @@ def adaptive_hyperquadtree(set_sim_params_get_sim_stats, is_in_target_range, par
         nodes_visited: Dictionary tracking nodes visited and sampled points at each depth.
     """
     params_to_change = params['params_to_change']
-    algorithm = 'hyperquadtree'
+    algorithm = f'hyperquadtree_{variation}'
 
     # Extract parameter definitions
     param_names = list(params_to_change.keys())
@@ -273,12 +71,18 @@ def adaptive_hyperquadtree(set_sim_params_get_sim_stats, is_in_target_range, par
     if n_dims < 1:
         raise ValueError("params_to_change must contain at least one parameter.")
 
+    # Extract min_step_size for each parameter
+    min_lengths = {param: info.get('min_step_size', 0) for param, info in params_to_change.items()}
+
     # Initialize root node
     bounds = [(info["values"][0], info["values"][1]) for info in params_to_change.values()]
     global_bounds = bounds  # Use the initial bounds as the global bounds
     root = HyperQuadNode(bounds)
     all_nodes = [root]
     sampled_points = {}
+    # depth_of_first_change_in_status = max_depth
+    # min_depth_found = False
+    # min_depth = max_depth  # Initialize min_depth to max_depth
 
     # Calculate the initial normalized space
     initial_space = calculate_normalized_space(bounds, global_bounds)
@@ -297,6 +101,15 @@ def adaptive_hyperquadtree(set_sim_params_get_sim_stats, is_in_target_range, par
         """Cast value to integer if discrete, otherwise leave continuous."""
         return int(round(val)) if is_disc else val
 
+    def can_split(bounds):
+        """
+        Check if the node can be split based on the minimum lengths for each parameter.
+        """
+        for i, (min_val, max_val) in enumerate(bounds):
+            if (max_val - min_val) < min_lengths[param_names[i]]:
+                return False
+        return True
+
     def evaluate(node, simulation_log):
         """Evaluate the simulation function at the corners and decide if subdivision is needed."""
         # Generate all corners of the hypercube
@@ -311,8 +124,8 @@ def adaptive_hyperquadtree(set_sim_params_get_sim_stats, is_in_target_range, par
         results = []
         results_direction = []
         for corner in corners:
-            if params['print_intermediate_results']:
-                print(f"\n\n # Evaluating corner at {corner}")
+            # if params['print_intermediate_results']:
+            #     print(f"\n\n # Evaluating corner at {corner}")
 
             if corner not in sampled_points:
                 # Prepare parameter values for the simulation
@@ -331,24 +144,24 @@ def adaptive_hyperquadtree(set_sim_params_get_sim_stats, is_in_target_range, par
             else:
                 target_ppi_dict = sampled_points[corner]
 
-            if params['print_intermediate_results']:
-                print(f"  Target PPI Dict: {target_ppi_dict}")
+            # if params['print_intermediate_results']:
+            #     print(f"  Target PPI Dict: {target_ppi_dict}")
 
             # Determine if in target range
             in_range, in_out_mixed = is_in_target_range(target_ppi_dict, params, above_below=True)
             results.append(in_range)
             results_direction.append(in_out_mixed)
 
-            if params['print_intermediate_results']:
-                print(f"  In Target Range: {in_range}, Direction: {in_out_mixed}")
+            # if params['print_intermediate_results']:
+            #     print(f"  In Target Range: {in_range}, Direction: {in_out_mixed}")
 
         # Check if region is "mixed" (contains both in-range and out-of-range corners)
         in_range = any(results)
         out_range = any(not r for r in results)
         direction_range = all_values_same(results_direction)
 
-        if params['print_intermediate_results']:
-            print(f"Node at depth {node.depth} - In Range: {in_range}, Out Range: {out_range}, Direction Range Same: {direction_range}")
+        # if params['print_intermediate_results']:
+        #     print(f"Node at depth {node.depth} - In Range: {in_range}, Out Range: {out_range}, Direction Range Same: {direction_range}")
 
         # Classify node
         node.corner_results = [(corners[i], results[i]) for i in range(len(corners))]
@@ -360,16 +173,29 @@ def adaptive_hyperquadtree(set_sim_params_get_sim_stats, is_in_target_range, par
         else:
             node.status = "mixed"
 
-        if params['print_intermediate_results']:
-            print(f"Node at depth {node.depth} classified as {node.status}")
+        # if params['print_intermediate_results']:
+        #     print(f"Node at depth {node.depth} classified as {node.status}")
 
         # Subdivide if necessary
         if (node.depth < min_depth) or ((in_range and out_range or out_range and not direction_range) and node.depth < max_depth):
+            if not can_split(node.bounds):
+                # if params['print_intermediate_results']:
+                #     print(f"Node at depth {node.depth} cannot be split further due to minimum length constraints.")
+                return [], simulation_log
+
             node.is_leaf = False
-            midpoints = [
-                cast_value((node.bounds[i][0] + node.bounds[i][1]) / 2, params_to_change[param_names[i]]["type"] == "disc")
-                for i in range(n_dims)
-            ]
+            if variation == "midpoints":
+                midpoints = [
+                    cast_value((node.bounds[i][0] + node.bounds[i][1]) / 2, params_to_change[param_names[i]]["type"] == "disc")
+                    for i in range(n_dims)
+                ]
+            elif variation == "random":
+                midpoints = [
+                    cast_value(uniform(node.bounds[i][0], node.bounds[i][1]), params_to_change[param_names[i]]["type"] == "disc")
+                    for i in range(n_dims)
+                ]
+            else:
+                raise ValueError(f"Invalid variation parameter: {variation}. Use 'midpoints' or 'random'.")
 
             # Generate child nodes
             children = []
@@ -393,18 +219,23 @@ def adaptive_hyperquadtree(set_sim_params_get_sim_stats, is_in_target_range, par
             new_children, simulation_log = evaluate(node, simulation_log)
             new_frontier.extend(new_children)
 
+
+        # if any(node.status == "in_range" for node in frontier) and \
+        #     any(node.status == "out_range" for node in frontier) and \
+        #     not min_depth_found:
+        #     print(f"All nodes classified as in_range or out_range at iteration {iteration}. Stopping refinement.")
+        #     # depth_of_first_change_in_status = iteration + 1
+        #     min_depth_found = True
+        #     min_depth = min(min_depth, iteration + 1) 
+        #     print(f"Adjusting min_depth to {min_depth} based on first change in status at depth {iteration}.")
+
         previous_sample_count = len(sampled_points)
         frontier = new_frontier
         all_nodes.extend(frontier)
 
-        leaf_nodes = [node for node in all_nodes if node.is_leaf and node.status != None]
+        # leaf_nodes = [node for node in all_nodes if node.is_leaf and node.status != None]
+        leaf_nodes = [node for node in all_nodes if node.is_leaf and node.status in ["in_range", "out_range"]]
 
-        # print("\n =================================")
-        # print(" -----> initial_space:", initial_space)
-        # print(f" -----> Calculating leaf space at iteration {iteration} with {len(leaf_nodes)} leaf nodes.")
-        # print('leaf_nodes: (at iteration)', iteration)
-        # for node in leaf_nodes:
-        #     print(f"  Node stats: leaf: {node.is_leaf}, Depth: {node.depth}, Status: {node.status}, {node.bounds}")
         leaf_space = calculate_leaf_space(leaf_nodes)
         fraction = leaf_space / initial_space
 
@@ -586,9 +417,13 @@ def _plot_2d_hyperquadtree(params, nodes, param_names, param_bounds, nodes_visit
         mid_x = (x_min + x_max) / 2
         mid_y = (y_min + y_max) / 2
 
-        # Draw vertical and horizontal cuts
-        plt.plot([mid_x, mid_x], [y_min, y_max], "r--", lw=1)
-        plt.plot([x_min, x_max], [mid_y, mid_y], "r--", lw=1)
+        variation = params['strategies']['hyperquadtree'].get('variation', 'random')
+        if variation == 'midpoints':
+        
+
+            # Draw vertical and horizontal cuts
+            plt.plot([mid_x, mid_x], [y_min, y_max], "r--", lw=1)
+            plt.plot([x_min, x_max], [mid_y, mid_y], "r--", lw=1)
 
         # Draw the rectangle representing the node
         plt.gca().add_patch(Rectangle((x_min, y_min), x_max - x_min, y_max - y_min,
