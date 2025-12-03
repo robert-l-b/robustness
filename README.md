@@ -11,7 +11,10 @@ Business process robustness describes a process’s ability to meet performance 
 ## Repository Structure
 - **`pipeline.ipynb`**:
   - Main notebook for orchestrating the business process robustness approach.
-  - Processes simulation logs, calculates robustness metrics, and saves results.
+  - Requires configuration of all inputs.
+  - Discovers a BPS model using SIMOD if specified.
+  - Conducts the specified assessment approaches (our approach as well as grid search)
+  
 
 - **`src/evaluation.py`**:
   - Script to evaluate the approach against ta grid search ground truth.
