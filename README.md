@@ -33,6 +33,11 @@ Business process robustness describes a process’s ability to meet performance 
      ```bash
      pip install -r requirements.txt
      ```
+   - Install both:
+        - The BPS discovery tool [Simod](https://github.com/AutomatedProcessImprovement/Simod)
+        - The simulation engine [Prosimos](https://github.com/AutomatedProcessImprovement/Prosimos)
+
+
 
 2. **Run Analysis**:
    - Use `pipeline.ipynb` to process simulation logs and evaluate robustness.
