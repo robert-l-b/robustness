@@ -3,8 +3,14 @@
 import matplotlib.pyplot as plt
 import os
 import numpy as np
+import plotly.graph_objects as go
+import matplotlib.patches as patches
+import matplotlib.ticker as ticker
 from matplotlib.ticker import ScalarFormatter, LogLocator, FuncFormatter, MaxNLocator
 from mpl_toolkits.mplot3d import Axes3D
+from scipy.spatial import Delaunay
+from alphashape import alphashape
+from scipy.interpolate import griddata
 
 def plot_param_relationships(results_df, algorithms, params):
     """
@@ -148,8 +154,7 @@ def get_label(param_name, label_dict):
         if param_name.startswith(key):
             label = label_dict[key]
             return label
-import matplotlib.patches as patches
-import matplotlib.pyplot as plt
+
 
 def plot_gs_hqt_overlay_with_areas(results_df, params, hqt_df):
     """
@@ -179,8 +184,6 @@ def plot_gs_hqt_overlay_with_areas(results_df, params, hqt_df):
     plt.figure(figsize=plot_vars['figure_size'])
 
 
-
-    import matplotlib.ticker as ticker
 
     # Set the y-axis to print every 2nd tick
     plt.yticks(fontsize=plot_vars['tick_size'])
@@ -475,6 +478,208 @@ def plot_3d_results_with_target_range(results_df, params, algorithm, x_col, z_co
 
 
 
+def plot_3d_hqt_leaf_nodes(hqt_df, params):
+    """
+    Plots a 3D space where each leaf node from the hqt_df is located and colored
+    according to its classification.
+
+    Ensures that nothing (labels, ticks, title) is cut off.
+    """
+    # Extract plot variables
+    plot_vars = params['viz']['plot_vars']
+    label_dict = plot_vars['label_dict']
+
+    label_size_reduction = 8
+    tick_size_reduction = 8
+
+    # Dynamically infer axis labels
+    x_label = get_label('arriaval_distr_mean', label_dict) or 'Dimension 0'
+    y_label = get_label('resource_count_', label_dict) or 'Dimension 1'
+    z_label = get_label('branching_probability', label_dict) or 'Dimension 2'
+
+    # Debugging: print labels
+    print("X Label:", x_label)
+    print("Y Label:", y_label)
+    print("Z Label:", z_label)
+
+    # Create a 3D figure with large size to avoid clipping
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Plot each leaf node as a 3D box
+    for _, row in hqt_df.iterrows():
+        if row['is_leaf']:
+            if row['status'] == 'mixed':
+                color = 'white'
+                alpha = 0.8
+            elif row['status'] == 'in_range':
+                color = 'green'
+                alpha = 0.2
+            elif row['status'] == 'out_range':
+                color = 'red'
+                alpha = 0.5
+            else:
+                continue
+
+            x = [row['dim_0_min'] / 60, row['dim_0_max'] / 60]
+            y = [row['dim_1_min'], row['dim_1_max']]
+            z = [row['dim_2_min'], row['dim_2_max']]
+
+            # Bottom and top faces
+            xx, yy = np.meshgrid(x, y)
+            ax.plot_surface(xx, yy, np.full_like(xx, z[0]), color=color, alpha=alpha)
+            ax.plot_surface(xx, yy, np.full_like(xx, z[1]), color=color, alpha=alpha)
+
+            # Left and right faces
+            yy, zz = np.meshgrid(y, z)
+            ax.plot_surface(np.full_like(yy, x[0]), yy, zz, color=color, alpha=alpha)
+            ax.plot_surface(np.full_like(yy, x[1]), yy, zz, color=color, alpha=alpha)
+
+            # Front and back faces
+            xx, zz = np.meshgrid(x, z)
+            ax.plot_surface(xx, np.full_like(xx, y[0]), zz, color=color, alpha=alpha)
+            ax.plot_surface(xx, np.full_like(xx, y[1]), zz, color=color, alpha=alpha)
+
+    # Set axis labels with large labelpad
+    ax.set_xlabel(x_label, fontsize=plot_vars['label_size'] - label_size_reduction, labelpad=10)
+    ax.set_ylabel(y_label, fontsize=plot_vars['label_size'] - label_size_reduction, labelpad=10)
+    ax.set_zlabel(z_label, fontsize=plot_vars['label_size'] - label_size_reduction, labelpad=10)
+
+    # Rotate the Z-axis label by 180 degrees
+    ax.zaxis.label.set_rotation(180)
+
+    # Tick labels
+    ax.tick_params(axis='both', labelsize=plot_vars['tick_size'] - tick_size_reduction)
+
+    # Rotate for better visualization
+    ax.view_init(elev=30, azim=45)
+
+    # Title
+    title = params.get('process_name', 'Process') + "_3D_HQT_Leaf_Nodes"
+    if plot_vars['plot_title']:
+        ax.set_title(title, fontsize=plot_vars['label_size'], pad=10)
+
+    # Adjust layout generously to avoid clipping
+    fig.subplots_adjust(left=0.25, right=0.95, top=0.95, bottom=0.25)
+
+    # Ensure tight layout for any remaining space
+    fig.tight_layout(pad=3.0)
+
+    # Save figure
+    log_name = params.get('process_name', 'log_name')
+    fig_name = f'{log_name}_3D_HQT_Leaf_Nodes'
+
+    for extension in params['viz']['figure_extensions']:
+        output_path = os.path.join(params['viz']['output_figures_path'], fig_name + extension)
+        plt.savefig(output_path, bbox_inches='tight', pad_inches=0.5, dpi=1200)
+        print(f"Saved figure to {output_path}")
+
+
+
+
+def plot_3d_hqt_leaf_nodes(hqt_df, params):
+    """
+    Plots a 3D space where each leaf node from the hqt_df is located and colored
+    according to its classification.
+
+    Ensures that nothing (labels, ticks, title) is cut off.
+    """
+    # Extract plot variables
+    plot_vars = params['viz']['plot_vars']
+    label_dict = plot_vars['label_dict']
+
+    label_size_reduction = 8
+    tick_size_reduction = 8
+
+    # Dynamically infer axis labels
+    x_label = get_label('arriaval_distr_mean', label_dict) or 'Dimension 0'
+    y_label = get_label('resource_count_', label_dict) or 'Dimension 1'
+    z_label = get_label('branching_probability', label_dict) or 'Dimension 2'
+
+    # Debugging: print labels
+    print("X Label:", x_label)
+    print("Y Label:", y_label)
+    print("Z Label:", z_label)
+
+    # Create a 3D figure with large size to avoid clipping
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Plot each leaf node as a 3D box
+    for _, row in hqt_df.iterrows():
+        if row['is_leaf']:
+            if row['status'] == 'mixed':
+                color = 'white'
+                alpha = 0.8
+            elif row['status'] == 'in_range':
+                color = 'green'
+                alpha = 0.2
+            elif row['status'] == 'out_range':
+                color = 'red'
+                alpha = 0.5
+            else:
+                continue
+
+            x = [row['dim_0_min'] / 60, row['dim_0_max'] / 60]
+            y = [row['dim_1_min'], row['dim_1_max']]
+            z = [row['dim_2_min'], row['dim_2_max']]
+
+            # Bottom and top faces
+            xx, yy = np.meshgrid(x, y)
+            ax.plot_surface(xx, yy, np.full_like(xx, z[0]), color=color, alpha=alpha)
+            ax.plot_surface(xx, yy, np.full_like(xx, z[1]), color=color, alpha=alpha)
+
+            # Left and right faces
+            yy, zz = np.meshgrid(y, z)
+            ax.plot_surface(np.full_like(yy, x[0]), yy, zz, color=color, alpha=alpha)
+            ax.plot_surface(np.full_like(yy, x[1]), yy, zz, color=color, alpha=alpha)
+
+            # Front and back faces
+            xx, zz = np.meshgrid(x, z)
+            ax.plot_surface(xx, np.full_like(xx, y[0]), zz, color=color, alpha=alpha)
+            ax.plot_surface(xx, np.full_like(xx, y[1]), zz, color=color, alpha=alpha)
+
+    # Set axis labels with large labelpad
+    ax.set_xlabel(x_label, fontsize=plot_vars['label_size'] - label_size_reduction, labelpad=10)
+    ax.set_ylabel(y_label, fontsize=plot_vars['label_size'] - label_size_reduction, labelpad=10)
+    ax.set_zlabel(z_label, fontsize=plot_vars['label_size'] - label_size_reduction, labelpad=30)
+
+    # Rotate and reposition the Z-axis label
+    ax.zaxis.label.set_rotation(180)  # Rotate the Z-axis label
+    ax.zaxis.set_label_coords(0.5, -0.1)  # Reposition the Z-axis label
+
+    # Tick labels
+    ax.tick_params(axis='both', labelsize=plot_vars['tick_size'] - tick_size_reduction)
+
+    # Rotate for better visualization
+    ax.view_init(elev=30, azim=45)
+
+    # Title
+    title = params.get('process_name', 'Process') + "_3D_HQT_Leaf_Nodes"
+    if plot_vars['plot_title']:
+        ax.set_title(title, fontsize=plot_vars['label_size'], pad=10)
+
+    # Adjust layout generously to avoid clipping
+    fig.subplots_adjust(left=0.25, right=0.95, top=0.95, bottom=0.25)
+
+    # Ensure tight layout for any remaining space
+    fig.tight_layout(pad=3.0)
+
+    # Save figure
+    log_name = params.get('process_name', 'log_name')
+    fig_name = f'{log_name}_3D_HQT_Leaf_Nodes'
+
+    for extension in params['viz']['figure_extensions']:
+        output_path = os.path.join(params['viz']['output_figures_path'], fig_name + extension)
+        plt.savefig(output_path, bbox_inches='tight', pad_inches=0.5, dpi=1200)
+        print(f"Saved figure to {output_path}")
+
+    # Show plot
+    plt.show()
+    
+
+
+
 def plot_3d_in_out(results_df, params, algorithm, use_connected_surface=False, angles=(45, 45), show_points=None):
     """
     Plots a 3D graph with three parameters on the axes, visualizing in-range and out-of-range points.
@@ -572,10 +777,6 @@ def plot_3d_in_out(results_df, params, algorithm, use_connected_surface=False, a
         # Show the plot
         plt.show()
 
-
-import plotly.graph_objects as go
-from scipy.spatial import Delaunay
-import numpy as np
 
 def plot_3d_in_out_interactive(results_df, params, algorithm, use_connected_surface=None, show_points=None):
     """
@@ -703,9 +904,6 @@ def plot_3d_in_out_interactive(results_df, params, algorithm, use_connected_surf
 
 
 
-from scipy.interpolate import griddata
-import numpy as np
-
 def plot_surface_with_interpolation(results_df, params, algorithm, use_connected_surface=None):
     # Extract 3D plotting parameters
     plot_params = params['viz']['3d_InOut_params']
@@ -776,9 +974,6 @@ def plot_surface_with_interpolation(results_df, params, algorithm, use_connected
 
 
 
-from alphashape import alphashape
-import numpy as np
-import plotly.graph_objects as go
 
 def plot_surface_with_alpha_shape(results_df, params, algorithm, use_connected_surface=None, alpha=1.0):
     """
@@ -884,9 +1079,6 @@ def plot_surface_with_alpha_shape(results_df, params, algorithm, use_connected_s
 
 
 
-from scipy.spatial import Delaunay
-import plotly.graph_objects as go
-import numpy as np
 
 def plot_3d_connected_all_points(results_df, params, algorithm, use_connected_surface="in"):
     """
@@ -974,9 +1166,6 @@ def plot_3d_connected_all_points(results_df, params, algorithm, use_connected_su
 
 
 
-from scipy.spatial import Delaunay
-import plotly.graph_objects as go
-import numpy as np
 
 def plot_3d_connected_filtered_points(results_df, params, algorithm, use_connected_surface="in"):
     """
@@ -1112,114 +1301,3 @@ def plot_3d_connected_filtered_points(results_df, params, algorithm, use_connect
     fig.show()
 
 
-
-    
-
-# def plot_3d_in_out_interactive(results_df, params, algorithm, use_connected_surface=False):
-#     """
-#     Creates an interactive 3D plot with three parameters on the axes, visualizing in-range and out-of-range points.
-#     Optionally, plots out-of-range points as a connected red surface.
-
-#     Args:
-#         results_df (pd.DataFrame): The DataFrame containing simulation results.
-#         params (dict): A dictionary containing simulation parameters, including "viz".
-#         algorithm (str): The algorithm to filter the results for.
-#         use_connected_surface (bool): Whether to plot out-of-range points as a connected red surface.
-
-#     Returns:
-#         None
-#     """
-
-#     markersize = 3
-
-#     # Extract 3D plotting parameters
-#     plot_params = params['viz']['3d_InOut_params']
-#     x_param = plot_params['x_param']
-#     y_param = plot_params['y_param']
-#     z_param = plot_params['z_param']
-
-#     # Filter the DataFrame for the given algorithm
-#     filtered_df = results_df[results_df['algorithm'] == algorithm]
-
-#     # Separate in-range and out-of-range points
-#     in_range = filtered_df[filtered_df['status'] == 'in']
-#     out_of_range = filtered_df[filtered_df['status'] == 'out']
-
-#     # Create the 3D scatter plot
-#     fig = go.Figure()
-
-#     # Add in-range points (green)
-#     fig.add_trace(go.Scatter3d(
-#         x=in_range[x_param],
-#         y=in_range[y_param],
-#         z=in_range[z_param],
-#         mode='markers',
-#         marker=dict(size=markersize, color='green'),
-#         name='In Range'
-#     ))
-
-#     if use_connected_surface:
-#         # Add out-of-range points as a connected red surface
-#         if len(out_of_range) >= 3:  # Ensure there are at least 3 points
-#             x_out = out_of_range[x_param].values
-#             y_out = out_of_range[y_param].values
-#             z_out = out_of_range[z_param].values
-
-#             # Check for duplicate points
-#             unique_points = np.unique(np.column_stack((x_out, y_out, z_out)), axis=0)
-            
-#             # print(f"Unique points for surface: {len(unique_points)}")   
-#             # print(unique_points[:5])  
-#             # s, e = -5, None
-#             # # for unique_point in unique_points[:5]:
-#             #     # print('\n','\n',unique_point[, 0], '\n', unique_point[, 1], '\n',unique_point[, 2])
-#             # print('\n','\n',unique_points[s:e, 0], '\n', unique_points[s:e, 1], '\n',unique_points[s:e, 2])
-#             # raise Exception("Debugging stop")
-
-
-#             if len(unique_points) >= 3:  # Ensure there are at least 3 unique points
-#                 x_out, y_out, z_out = unique_points[:, 0], unique_points[:, 1], unique_points[:, 2]
-
-#                 # Perform Delaunay triangulation for the surface
-#                 tri = Delaunay(np.column_stack((x_out, y_out)))
-#                 fig.add_trace(go.Mesh3d(
-#                     x=x_out,
-#                     y=y_out,
-#                     z=z_out,
-#                     i=tri.simplices[:, 0],
-#                     j=tri.simplices[:, 1],
-#                     k=tri.simplices[:, 2],
-#                     color='red',
-#                     opacity=0.5,
-#                     name='Out of Range (Surface)'
-#                 ))
-#             else:
-#                 print("Not enough unique points to create a surface.")
-#         else:
-#             print("Not enough points to create a surface.")
-#     else:
-#         # Add out-of-range points as red scatter points
-#         fig.add_trace(go.Scatter3d(
-#             x=out_of_range[x_param],
-#             y=out_of_range[y_param],
-#             z=out_of_range[z_param],
-#             mode='markers',
-#             marker=dict(size=markersize, color='red'),
-#             name='Out of Range'
-#         ))
-
-#     # Set axis labels and layout
-#     fig.update_layout(
-#         title=f"3D Parameter Space for {algorithm}",
-#         scene=dict(
-#             xaxis_title=x_param,
-#             yaxis_title=y_param,
-#             zaxis_title=z_param
-#         ),
-#         width=1200,  # Set the width of the plot
-#         height=800,  # Set the height of the plot
-#         margin=dict(l=0, r=0, b=0, t=40)
-#     )
-
-#     # Show the interactive plot
-#     fig.show()
