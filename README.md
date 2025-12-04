@@ -1,4 +1,4 @@
-# Robustness Repository
+# Simulation-based Business Process Robustness Assessment Repository
 
 ## Overview
 This repository provides a simulation-based approach for assessing **business process robustness**. 
@@ -14,7 +14,7 @@ Business process robustness describes a process’s ability to meet performance 
   - Requires configuration of all inputs.
   - Discovers a BPS model using SIMOD if specified.
   - Conducts the specified assessment approaches (our approach as well as grid search)
-  
+
 
 - **`src/evaluation.py`**:
   - Script to evaluate the approach against ta grid search ground truth.
